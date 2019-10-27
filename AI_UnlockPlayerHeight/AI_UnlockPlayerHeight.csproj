@@ -44,6 +44,9 @@
     <Reference Include="BepInEx.Harmony, Version=2.0.0.0, Culture=neutral, PublicKeyToken=null">
       <HintPath>..\..\..\games\AI-Syoujyo\BepInEx\core\BepInEx.Harmony.dll</HintPath>
     </Reference>
+    <Reference Include="BepInEx.MessageCenter, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null">
+      <HintPath>..\..\..\games\AI-Syoujyo\BepInEx\plugins\BepInEx.MessageCenter.dll</HintPath>
+    </Reference>
     <Reference Include="Cinemachine, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
       <HintPath>..\..\..\games\AI-Syoujyo\AI-Syoujyo_Data\Managed\Cinemachine.dll</HintPath>
     </Reference>
