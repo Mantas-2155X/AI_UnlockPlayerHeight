@@ -5,6 +5,7 @@ using BepInEx.Harmony;
 using BepInEx.Configuration;
 
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection.Emit;
 
 using AIProject;
@@ -15,9 +16,13 @@ using UnityEngine;
 using JetBrains.Annotations;
 
 namespace AI_UnlockPlayerHeight {
-    [BepInPlugin(nameof(AI_UnlockPlayerHeight), nameof(AI_UnlockPlayerHeight), "1.1.0")]
+    [BepInPlugin(nameof(AI_UnlockPlayerHeight), nameof(AI_UnlockPlayerHeight), "1.0.0")]
     public class AI_UnlockPlayerHeight : BaseUnityPlugin
     {
+        private static float cardHeightValue = -999f;
+        
+        private static PlayerActor actor;
+        
         private static ConfigEntry<bool> alignCamera { get; set; }
         private static ConfigEntry<bool> cardHeight { get; set; }
         private static ConfigEntry<int> customHeight { get; set; }
@@ -35,44 +40,34 @@ namespace AI_UnlockPlayerHeight {
             20.11f
         };
 
-        private static float GetHeight(ChaControl chaControl)
+        private static void ApplySettings(PlayerActor __instance)
         {
-            if (chaControl == null)
-                return 0.75f;
+            if (__instance == null) 
+                return;
 
-            if (cardHeight.Value)
-                return chaControl.chaFile.custom.body.shapeValueBody[0];
+            actor = __instance;
             
-            if (!cardHeight.Value)
-                return (customHeight.Value / 100f);
+            ChaControl chaControl = actor.ChaControl;
+            if (chaControl == null) 
+                return;
 
-            return 0.75f;
-        }
+            PlayerController controller = actor.PlayerController;
+            if (controller == null) 
+                return;
 
-        private void Awake()
-        {
-            alignCamera = Config.AddSetting(new ConfigDefinition("AI_UnlockPlayerHeight", "Align camera to height"), true, new ConfigDescription("Aligns camera position according to your height"));
-            cardHeight = Config.AddSetting(new ConfigDefinition("AI_UnlockPlayerHeight", "Set height from card"), true, new ConfigDescription("ON->Set height according to your character card OFF->Custom Height"));
-            customHeight = Config.AddSetting(new ConfigDefinition("AI_UnlockPlayerHeight", "Custom height"), 75, new ConfigDescription("Works only if 'Set height from card' is OFF", new AcceptableValueRange<int>(-100, 200)));
-
-            HarmonyWrapper.PatchAll(typeof(AI_UnlockPlayerHeight));
-        }
-
-        [HarmonyPostfix, HarmonyPatch(typeof(PlayerActor), "InitializeIK")][UsedImplicitly]
-        public static void PlayerActor_InitializeIK_HeightPostfix(PlayerActor __instance)
-        {
-            if (!alignCamera.Value || __instance == null) return;
-
-            ChaControl chaControl = __instance.ChaControl;
-            PlayerController controller = __instance.PlayerController;
-
-            if (chaControl == null || controller == null) return;
-
+            float height = cardHeight.Value ? cardHeightValue : customHeight.Value / 100f;
+            chaControl.SetShapeBodyValue(0, height);
+            
             for (int i = 0; i < controller.transform.childCount; i++)
             {
                 Transform child = controller.transform.GetChild(i);
+
+                if (!alignCamera.Value)
+                {
+                    child.localPosition = new Vector3(0f, defaultY[i], 0f);
+                    continue;
+                }
                 
-                float height = chaControl.GetShapeBodyValue(0);
                 float mul = 2f;
 
                 if (child.name.Contains("Lookat"))
@@ -86,74 +81,98 @@ namespace AI_UnlockPlayerHeight {
                 child.localPosition = new Vector3(0f, defaultY[i] + (-0.75f + height) * mul, 0f);
             }
         }
+        
+        private void Awake()
+        {
+            alignCamera = Config.AddSetting(new ConfigDefinition("AI_UnlockPlayerHeight", "Align camera to height"), true, new ConfigDescription("Aligns camera position according to your height"));
+            cardHeight = Config.AddSetting(new ConfigDefinition("AI_UnlockPlayerHeight", "Set height from card"), true, new ConfigDescription("ON->Set height according to your character card OFF->Custom Height"));
+            customHeight = Config.AddSetting(new ConfigDefinition("AI_UnlockPlayerHeight", "Custom height"), 75, new ConfigDescription("Works only if 'Set height from card' is OFF", new AcceptableValueRange<int>(-100, 200)));
+
+            customHeight.SettingChanged += delegate { if (actor != null) ApplySettings(actor); };
+            cardHeight.SettingChanged += delegate { if (actor != null) ApplySettings(actor); };
+            alignCamera.SettingChanged += delegate { if (actor != null) ApplySettings(actor); };
+
+            HarmonyWrapper.PatchAll(typeof(AI_UnlockPlayerHeight));
+        }
+        
+        [HarmonyPostfix, HarmonyPatch(typeof(PlayerActor), "InitializeIK")][UsedImplicitly]
+        public static void PlayerActor_InitializeIK_HeightPostfix(PlayerActor __instance)
+        {
+            if (__instance != null) 
+                ApplySettings(__instance);
+        }
+        
+        [HarmonyPostfix, HarmonyPatch(typeof(ChaControl), "Initialize")][UsedImplicitly]
+        public static void ChaControl_Initialize_HeightPostfix(ChaControl __instance)
+        {
+            if (__instance != null) 
+                cardHeightValue = __instance.chaFile.custom.body.shapeValueBody[0];
+        }
 
         [HarmonyTranspiler, HarmonyPatch(typeof(ChaControl), "Initialize")][UsedImplicitly]
         public static IEnumerable<CodeInstruction> ChaControl_Initialize_HeightTranspile(IEnumerable<CodeInstruction> instructions)
         {
-            foreach (var instruction in instructions)
-            {
-                if (instruction.opcode == OpCodes.Ldc_R4 && (float)instruction.operand == 0.75f)
-                {
-                    yield return new CodeInstruction(OpCodes.Ldarg_0);
-                    yield return new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(AI_UnlockPlayerHeight), nameof(GetHeight)));
-                }
-                else
-                {
-                    yield return instruction;
-                }
-            }
+            var il = instructions.ToList();
+            
+            var index = il.FindIndex(instruction => instruction.opcode == OpCodes.Ldc_R4 && (float)instruction.operand == 0.75f);
+            if (index <= 0) return il;
+            
+            il[index - 6].opcode = OpCodes.Nop;
+            il[index - 5].opcode = OpCodes.Nop;
+            il[index - 4].opcode = OpCodes.Nop;
+            il[index - 3].opcode = OpCodes.Nop;
+            il[index - 2].opcode = OpCodes.Nop;
+            il[index - 1].opcode = OpCodes.Nop;
+            il[index].opcode = OpCodes.Nop;
+            il[index + 1].opcode = OpCodes.Nop;
+
+            return il;
         }
 
         [HarmonyTranspiler, HarmonyPatch(typeof(ChaControl), "InitShapeBody")][UsedImplicitly]
         public static IEnumerable<CodeInstruction> ChaControl_InitShapeBody_HeightTranspile(IEnumerable<CodeInstruction> instructions)
         {
-            foreach (var instruction in instructions)
-            {
-                if (instruction.opcode == OpCodes.Ldc_R4 && (float)instruction.operand == 0.75f)
-                {
-                    yield return new CodeInstruction(OpCodes.Ldarg_0);
-                    yield return new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(AI_UnlockPlayerHeight), nameof(GetHeight)));
-                }
-                else
-                {
-                    yield return instruction;
-                }
-            }
+            var il = instructions.ToList();
+            
+            var index = il.FindIndex(instruction => instruction.opcode == OpCodes.Ldc_R4 && (float)instruction.operand == 0.75f);
+            if (index <= 0) return il;
+            
+            il[index - 2].opcode = OpCodes.Nop;
+            il[index - 1].opcode = OpCodes.Nop;
+            il[index].opcode = OpCodes.Nop;
+            il[index + 1].opcode = OpCodes.Nop;
+
+            return il;
         }
-        
+
         [HarmonyTranspiler, HarmonyPatch(typeof(ChaControl), "SetShapeBodyValue")][UsedImplicitly]
         public static IEnumerable<CodeInstruction> ChaControl_SetShapeBodyValue_HeightTranspile(IEnumerable<CodeInstruction> instructions)
         {
-            foreach (var instruction in instructions)
-            {
-                if (instruction.opcode == OpCodes.Ldc_R4 && (float)instruction.operand == 0.75f)
-                {
-                    yield return new CodeInstruction(OpCodes.Ldarg_0) {labels = instruction.labels};
-                    yield return new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(AI_UnlockPlayerHeight), nameof(GetHeight)));
-                }
-                else
-                {
-                    yield return instruction;
-                }
-            }
+            var il = instructions.ToList();
+            
+            var index = il.FindIndex(instruction => instruction.opcode == OpCodes.Ldc_R4 && (float)instruction.operand == 0.75f);
+            if (index <= 0) return il;
+            
+            il[index].opcode = OpCodes.Nop;
+            il[index + 1].opcode = OpCodes.Nop;
+
+            return il;
         }
-        
+
         [HarmonyTranspiler, HarmonyPatch(typeof(ChaControl), "UpdateShapeBodyValueFromCustomInfo")][UsedImplicitly]
         public static IEnumerable<CodeInstruction> ChaControl_UpdateShapeBodyValueFromCustomInfo_HeightTranspile(IEnumerable<CodeInstruction> instructions)
         {
-            foreach (var instruction in instructions)
-            {
-                if (instruction.opcode == OpCodes.Ldc_R4 && (float)instruction.operand == 0.75f)
-                {
-                    yield return new CodeInstruction(OpCodes.Ldarg_0);
-                    yield return new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(AI_UnlockPlayerHeight), nameof(GetHeight)));
-                }
-                else
-                {
-                    yield return instruction;
-                }
-            }
+            var il = instructions.ToList();
+            
+            var index = il.FindIndex(instruction => instruction.opcode == OpCodes.Ldc_R4 && (float)instruction.operand == 0.75f);
+            if (index <= 0) return il;
+            
+            il[index - 2].opcode = OpCodes.Nop;
+            il[index - 1].opcode = OpCodes.Nop;
+            il[index].opcode = OpCodes.Nop;
+            il[index + 1].opcode = OpCodes.Nop;
+
+            return il;
         }
-        
     }
 }
