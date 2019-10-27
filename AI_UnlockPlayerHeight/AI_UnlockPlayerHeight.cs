@@ -109,8 +109,31 @@ namespace AI_UnlockPlayerHeight {
                 cardHeightValue = __instance.chaFile.custom.body.shapeValueBody[0];
         }
 
+        [HarmonyTranspiler, HarmonyPatch(typeof(HScene), "ChangeAnimation")][UsedImplicitly]
+        public static IEnumerable<CodeInstruction> HScene_ChangeAnimation_RemoveHeightLock(IEnumerable<CodeInstruction> instructions)
+        {
+            var il = instructions.ToList();
+            
+            var index = il.FindIndex(instruction => instruction.opcode == OpCodes.Ldc_R4 && (float)instruction.operand == 0.75f);
+            if (index <= 0) return il;
+            
+            il[index - 7].opcode = OpCodes.Nop;
+            il[index - 6].opcode = OpCodes.Nop;
+            il[index - 5].opcode = OpCodes.Nop;
+            il[index - 4].opcode = OpCodes.Nop;
+            il[index - 3].opcode = OpCodes.Nop;
+            il[index - 2].opcode = OpCodes.Nop;
+            il[index - 1].opcode = OpCodes.Nop;
+            il[index].opcode = OpCodes.Nop;
+            il[index + 1].opcode = OpCodes.Nop;
+            il[index + 2].opcode = OpCodes.Nop;
+
+            return il;
+        }
+
+        
         [HarmonyTranspiler, HarmonyPatch(typeof(ChaControl), "Initialize")][UsedImplicitly]
-        public static IEnumerable<CodeInstruction> ChaControl_Initialize_HeightTranspile(IEnumerable<CodeInstruction> instructions)
+        public static IEnumerable<CodeInstruction> ChaControl_Initialize_RemoveHeightLock(IEnumerable<CodeInstruction> instructions)
         {
             var il = instructions.ToList();
             
@@ -130,7 +153,7 @@ namespace AI_UnlockPlayerHeight {
         }
 
         [HarmonyTranspiler, HarmonyPatch(typeof(ChaControl), "InitShapeBody")][UsedImplicitly]
-        public static IEnumerable<CodeInstruction> ChaControl_InitShapeBody_HeightTranspile(IEnumerable<CodeInstruction> instructions)
+        public static IEnumerable<CodeInstruction> ChaControl_InitShapeBody_RemoveHeightLock(IEnumerable<CodeInstruction> instructions)
         {
             var il = instructions.ToList();
             
@@ -146,7 +169,7 @@ namespace AI_UnlockPlayerHeight {
         }
 
         [HarmonyTranspiler, HarmonyPatch(typeof(ChaControl), "SetShapeBodyValue")][UsedImplicitly]
-        public static IEnumerable<CodeInstruction> ChaControl_SetShapeBodyValue_HeightTranspile(IEnumerable<CodeInstruction> instructions)
+        public static IEnumerable<CodeInstruction> ChaControl_SetShapeBodyValue_RemoveHeightLock(IEnumerable<CodeInstruction> instructions)
         {
             var il = instructions.ToList();
             
@@ -160,7 +183,7 @@ namespace AI_UnlockPlayerHeight {
         }
 
         [HarmonyTranspiler, HarmonyPatch(typeof(ChaControl), "UpdateShapeBodyValueFromCustomInfo")][UsedImplicitly]
-        public static IEnumerable<CodeInstruction> ChaControl_UpdateShapeBodyValueFromCustomInfo_HeightTranspile(IEnumerable<CodeInstruction> instructions)
+        public static IEnumerable<CodeInstruction> ChaControl_UpdateShapeBodyValueFromCustomInfo_RemoveHeightLock(IEnumerable<CodeInstruction> instructions)
         {
             var il = instructions.ToList();
             
