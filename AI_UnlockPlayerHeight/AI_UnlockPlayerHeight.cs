@@ -61,10 +61,11 @@ namespace AI_UnlockPlayerHeight {
             for (int i = 0; i < controller.transform.childCount; i++)
             {
                 Transform child = controller.transform.GetChild(i);
-
+                Vector3 position = child.localPosition;
+                
                 if (!alignCamera.Value)
                 {
-                    child.localPosition = new Vector3(0f, defaultY[i], 0f);
+                    child.localPosition = new Vector3(position.x, defaultY[i], position.z);
                     continue;
                 }
                 
@@ -73,12 +74,12 @@ namespace AI_UnlockPlayerHeight {
                 if (child.name.Contains("Lookat"))
                 {
                     if (child.name.Contains("Action"))
-                        Mathf.Clamp01(height); // Some actions could have the camera too low or too high. Clamp to prevent that.
+                        height = Mathf.Clamp01(height); // Some actions could have the camera too low or too high. Clamp to prevent that.
                     else
                         mul = 2.25f;
                 }
 
-                child.localPosition = new Vector3(0f, defaultY[i] + (-0.75f + height) * mul, 0f);
+                child.localPosition = new Vector3(position.x, defaultY[i] + (-0.75f + height) * mul, position.z);
             }
         }
         
@@ -102,10 +103,10 @@ namespace AI_UnlockPlayerHeight {
                 ApplySettings(__instance);
         }
         
-        [HarmonyPostfix, HarmonyPatch(typeof(ChaControl), "Initialize")][UsedImplicitly]
-        public static void ChaControl_Initialize_HeightPostfix(ChaControl __instance)
+        [HarmonyPostfix, HarmonyPatch(typeof(ChaControl), "InitShapeBody")][UsedImplicitly]
+        public static void ChaControl_InitShapeBody_HeightPostfix(ChaControl __instance)
         {
-            if (__instance != null) 
+            if (__instance != null && __instance.isPlayer) 
                 cardHeightValue = __instance.chaFile.custom.body.shapeValueBody[0];
         }
 
@@ -130,7 +131,6 @@ namespace AI_UnlockPlayerHeight {
 
             return il;
         }
-
         
         [HarmonyTranspiler, HarmonyPatch(typeof(ChaControl), "Initialize")][UsedImplicitly]
         public static IEnumerable<CodeInstruction> ChaControl_Initialize_RemoveHeightLock(IEnumerable<CodeInstruction> instructions)
