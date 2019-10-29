@@ -4,6 +4,8 @@ This plugin unlocks the players height hard lock of 75.
 It is *recommended*, that you keep players height during H at 75 (default) to avoid issues with H animations. 
 Illusion lazy-ed out and made all H animations prefer 75 as the player height, causing some of them to look weird when the player is at different heights.  
 
+Needs https://github.com/IllusionMods/BepisPlugins for configuration to work!
+
 **Current Features:**  
 * Align camera position with players height  
 * Set player height according to card (seperate for Roam and H)  
