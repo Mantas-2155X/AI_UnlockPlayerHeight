@@ -29,7 +29,8 @@ namespace AI_UnlockPlayerHeight {
         private static ConfigEntry<int> customHeightDuringH { get; set; }
 
         private static PlayerActor actor;
-        
+
+        private static bool inH;
         private static float cardHeightValue;
         private static readonly float[] defaultY =
         {
@@ -44,7 +45,7 @@ namespace AI_UnlockPlayerHeight {
             20.11f
         };
 
-        private static void ApplySettings(PlayerActor __instance, bool duringH)
+        private static void ApplySettings(PlayerActor __instance)
         {
             if (__instance == null) 
                 return;
@@ -61,7 +62,7 @@ namespace AI_UnlockPlayerHeight {
 
             float height;
             
-            if(duringH)
+            if(inH)
                 height = cardHeightDuringH.Value ? cardHeightValue : customHeightDuringH.Value / 100f;
             else
                 height = cardHeight.Value ? cardHeightValue : customHeight.Value / 100f;
@@ -97,19 +98,21 @@ namespace AI_UnlockPlayerHeight {
         {
             alignCamera = Config.AddSetting(new ConfigDefinition("Camera", "Align camera to player height"), true, new ConfigDescription("Aligns camera position according to player height"));
             
-            cardHeight = Config.AddSetting(new ConfigDefinition("Free Roam & Events", "Height from card"), true, new ConfigDescription("Set players height according to the value in the card"));
-            customHeight = Config.AddSetting(new ConfigDefinition("Free Roam & Events", "Custom height"), 75, new ConfigDescription("If 'Height from card' is off, use this value instead'", new AcceptableValueRange<int>(-100, 200)));
+            cardHeight = Config.AddSetting(new ConfigDefinition("Free Roam & Events", "Height from card"), true, new ConfigDescription("Set players height according to the value in the card", null, new ConfigurationManagerAttributes { Order = 1 }));
+            customHeight = Config.AddSetting(new ConfigDefinition("Free Roam & Events", "Custom height"), 75, new ConfigDescription("If 'Height from card' is off, use this value instead'", new AcceptableValueRange<int>(-100, 200), null, new ConfigurationManagerAttributes { Order = 2 }));
 
-            cardHeightDuringH = Config.AddSetting(new ConfigDefinition("During H", "Height from card"), false, new ConfigDescription("Set players height according to the value in the card"));
-            customHeightDuringH = Config.AddSetting(new ConfigDefinition("During H", "Custom height"), 75, new ConfigDescription("If 'Height from card' is off, use this value instead'", new AcceptableValueRange<int>(-100, 200)));
+            cardHeightDuringH = Config.AddSetting(new ConfigDefinition("H Scene", "Height from card (H)"), false, new ConfigDescription("Set players height according to the value in the card", null, new ConfigurationManagerAttributes { Order = 1 }));
+            customHeightDuringH = Config.AddSetting(new ConfigDefinition("H Scene", "Custom height (H)"), 75, new ConfigDescription("If 'Height from card' is off, use this value instead'", new AcceptableValueRange<int>(-100, 200), null, new ConfigurationManagerAttributes { Order = 2 }));
             
-            alignCamera.SettingChanged += delegate { ApplySettings(actor, false); };
+            alignCamera.SettingChanged += delegate { ApplySettings(actor); };
 
-            cardHeight.SettingChanged += delegate { ApplySettings(actor, false); };
-            customHeight.SettingChanged += delegate { ApplySettings(actor, false); };
+            cardHeight.SettingChanged += delegate { ApplySettings(actor); };
+            customHeight.SettingChanged += delegate { ApplySettings(actor); };
 
-            cardHeightDuringH.SettingChanged += delegate { ApplySettings(actor, true); };
-            customHeightDuringH.SettingChanged += delegate { ApplySettings(actor, true); };
+            cardHeightDuringH.SettingChanged += delegate { ApplySettings(actor); };
+            customHeightDuringH.SettingChanged += delegate { ApplySettings(actor); };
+
+            inH = false;
             
             HarmonyWrapper.PatchAll(typeof(AI_UnlockPlayerHeight));
         }
@@ -119,15 +122,27 @@ namespace AI_UnlockPlayerHeight {
         public static void PlayerActor_InitializeIK_HeightPostfix(PlayerActor __instance)
         {
             if (__instance != null) 
-                ApplySettings(__instance, false);
+                ApplySettings(__instance);
         }
         
-        // Apply height settings for H (true) //
+        // Apply duringH height settings when starting H //
         [HarmonyPostfix, HarmonyPatch(typeof(HScene), "InitCoroutine")][UsedImplicitly]
         public static void HScene_InitCoroutine_HeightPostfix(HScene __instance)
         {
-            if (__instance != null && actor != null) 
-                ApplySettings(actor, true);
+            inH = true;
+            
+            if (__instance != null && actor != null)
+                ApplySettings(actor);
+        }
+        
+        // Apply roam height settings when ending H //
+        [HarmonyPostfix, HarmonyPatch(typeof(HScene), "OnDisable")][UsedImplicitly]
+        public static void HScene_OnDisable_HeightPostfix(HScene __instance)
+        {
+            inH = false;
+            
+            if (__instance != null && actor != null)
+                ApplySettings(actor);
         }
         
         // Save players height from card into a cardHeightValue //
