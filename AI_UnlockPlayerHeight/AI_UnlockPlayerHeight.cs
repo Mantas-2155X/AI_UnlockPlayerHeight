@@ -11,12 +11,14 @@ using System.Reflection.Emit;
 using AIChara;
 using AIProject;
 
+using CharaCustom;
+
 using UnityEngine;
 
 using JetBrains.Annotations;
 
 namespace AI_UnlockPlayerHeight {
-    [BepInPlugin(nameof(AI_UnlockPlayerHeight), nameof(AI_UnlockPlayerHeight), "1.0.0")]
+    [BepInPlugin(nameof(AI_UnlockPlayerHeight), nameof(AI_UnlockPlayerHeight), "1.1.0")]
     public class AI_UnlockPlayerHeight : BaseUnityPlugin
     {
 
@@ -151,6 +153,26 @@ namespace AI_UnlockPlayerHeight {
         {
             if (__instance != null && __instance.isPlayer) 
                 cardHeightValue = __instance.chaFile.custom.body.shapeValueBody[0];
+        }
+
+        // Enable male height slider in charamaker //
+        [HarmonyPrefix, HarmonyPatch(typeof(CustomControl), "Initialize")][UsedImplicitly]
+        public static void CustomControl_Initialize_HeightPrefix(CustomControl __instance)
+        {
+            var trav = Traverse.Create(__instance);
+            
+            GameObject[] objMale = trav.Field("hideByCondition").Field("objMale").GetValue<GameObject[]>();
+            GameObject[] newMale = new GameObject[objMale.Length - 1];
+            
+            foreach (GameObject obj in objMale)
+            {
+                if (obj.GetComponent<CustomSliderSet>() != null && obj.GetComponent<CustomSliderSet>().title.text == "Height")
+                    continue;
+
+                newMale.AddToArray(obj);
+            }
+
+            trav.Field("hideByCondition").Field("objMale").SetValue(newMale);
         }
 
         //--Hard height lock of 75 for the player removal--//
