@@ -117,7 +117,7 @@ namespace AI_UnlockPlayerHeight {
             HarmonyWrapper.PatchAll(typeof(AI_UnlockPlayerHeight));
         }
 
-        // Apply height, camera settings for free roam & events (false) //
+        // Apply height, camera settings for free roam & events //
         [HarmonyPostfix, HarmonyPatch(typeof(PlayerActor), "InitializeIK")][UsedImplicitly]
         public static void PlayerActor_InitializeIK_HeightPostfix(PlayerActor __instance)
         {
@@ -145,7 +145,7 @@ namespace AI_UnlockPlayerHeight {
                 ApplySettings(actor);
         }
         
-        // Save players height from card into a cardHeightValue //
+        // Save players height from card into cardHeightValue //
         [HarmonyPostfix, HarmonyPatch(typeof(ChaControl), "InitShapeBody")][UsedImplicitly]
         public static void ChaControl_InitShapeBody_HeightPostfix(ChaControl __instance)
         {
