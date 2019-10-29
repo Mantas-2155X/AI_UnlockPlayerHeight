@@ -8,8 +8,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection.Emit;
 
-using AIProject;
 using AIChara;
+using AIProject;
 
 using UnityEngine;
 
@@ -19,14 +19,18 @@ namespace AI_UnlockPlayerHeight {
     [BepInPlugin(nameof(AI_UnlockPlayerHeight), nameof(AI_UnlockPlayerHeight), "1.0.0")]
     public class AI_UnlockPlayerHeight : BaseUnityPlugin
     {
-        private static float cardHeightValue = -999f;
-        
-        private static PlayerActor actor;
-        
+
         private static ConfigEntry<bool> alignCamera { get; set; }
+        
         private static ConfigEntry<bool> cardHeight { get; set; }
         private static ConfigEntry<int> customHeight { get; set; }
+        
+        private static ConfigEntry<bool> cardHeightDuringH { get; set; }
+        private static ConfigEntry<int> customHeightDuringH { get; set; }
 
+        private static PlayerActor actor;
+        
+        private static float cardHeightValue;
         private static readonly float[] defaultY =
         {
             0f, 
@@ -40,7 +44,7 @@ namespace AI_UnlockPlayerHeight {
             20.11f
         };
 
-        private static void ApplySettings(PlayerActor __instance)
+        private static void ApplySettings(PlayerActor __instance, bool duringH)
         {
             if (__instance == null) 
                 return;
@@ -55,7 +59,13 @@ namespace AI_UnlockPlayerHeight {
             if (controller == null) 
                 return;
 
-            float height = cardHeight.Value ? cardHeightValue : customHeight.Value / 100f;
+            float height;
+            
+            if(duringH)
+                height = cardHeightDuringH.Value ? cardHeightValue : customHeightDuringH.Value / 100f;
+            else
+                height = cardHeight.Value ? cardHeightValue : customHeight.Value / 100f;
+
             chaControl.SetShapeBodyValue(0, height);
             
             for (int i = 0; i < controller.transform.childCount; i++)
@@ -85,24 +95,42 @@ namespace AI_UnlockPlayerHeight {
         
         private void Awake()
         {
-            alignCamera = Config.AddSetting(new ConfigDefinition("AI_UnlockPlayerHeight", "Align camera to height"), true, new ConfigDescription("Aligns camera position according to your height"));
-            cardHeight = Config.AddSetting(new ConfigDefinition("AI_UnlockPlayerHeight", "Set height from card"), true, new ConfigDescription("ON->Set height according to your character card OFF->Custom Height"));
-            customHeight = Config.AddSetting(new ConfigDefinition("AI_UnlockPlayerHeight", "Custom height"), 75, new ConfigDescription("Works only if 'Set height from card' is OFF", new AcceptableValueRange<int>(-100, 200)));
+            alignCamera = Config.AddSetting(new ConfigDefinition("Camera", "Align camera to player height"), true, new ConfigDescription("Aligns camera position according to player height"));
+            
+            cardHeight = Config.AddSetting(new ConfigDefinition("Free Roam & Events", "Height from card"), true, new ConfigDescription("Set players height according to the value in the card"));
+            customHeight = Config.AddSetting(new ConfigDefinition("Free Roam & Events", "Custom height"), 75, new ConfigDescription("If 'Height from card' is off, use this value instead'", new AcceptableValueRange<int>(-100, 200)));
 
-            customHeight.SettingChanged += delegate { if (actor != null) ApplySettings(actor); };
-            cardHeight.SettingChanged += delegate { if (actor != null) ApplySettings(actor); };
-            alignCamera.SettingChanged += delegate { if (actor != null) ApplySettings(actor); };
+            cardHeightDuringH = Config.AddSetting(new ConfigDefinition("During H", "Height from card"), false, new ConfigDescription("Set players height according to the value in the card"));
+            customHeightDuringH = Config.AddSetting(new ConfigDefinition("During H", "Custom height"), 75, new ConfigDescription("If 'Height from card' is off, use this value instead'", new AcceptableValueRange<int>(-100, 200)));
+            
+            alignCamera.SettingChanged += delegate { ApplySettings(actor, false); };
 
+            cardHeight.SettingChanged += delegate { ApplySettings(actor, false); };
+            customHeight.SettingChanged += delegate { ApplySettings(actor, false); };
+
+            cardHeightDuringH.SettingChanged += delegate { ApplySettings(actor, true); };
+            customHeightDuringH.SettingChanged += delegate { ApplySettings(actor, true); };
+            
             HarmonyWrapper.PatchAll(typeof(AI_UnlockPlayerHeight));
         }
-        
+
+        // Apply height, camera settings for free roam & events (false) //
         [HarmonyPostfix, HarmonyPatch(typeof(PlayerActor), "InitializeIK")][UsedImplicitly]
         public static void PlayerActor_InitializeIK_HeightPostfix(PlayerActor __instance)
         {
             if (__instance != null) 
-                ApplySettings(__instance);
+                ApplySettings(__instance, false);
         }
         
+        // Apply height settings for H (true) //
+        [HarmonyPostfix, HarmonyPatch(typeof(HScene), "InitCoroutine")][UsedImplicitly]
+        public static void HScene_InitCoroutine_HeightPostfix(HScene __instance)
+        {
+            if (__instance != null && actor != null) 
+                ApplySettings(actor, true);
+        }
+        
+        // Save players height from card into a cardHeightValue //
         [HarmonyPostfix, HarmonyPatch(typeof(ChaControl), "InitShapeBody")][UsedImplicitly]
         public static void ChaControl_InitShapeBody_HeightPostfix(ChaControl __instance)
         {
@@ -110,6 +138,8 @@ namespace AI_UnlockPlayerHeight {
                 cardHeightValue = __instance.chaFile.custom.body.shapeValueBody[0];
         }
 
+        //--Hard height lock of 75 for the player removal--//
+        
         [HarmonyTranspiler, HarmonyPatch(typeof(HScene), "ChangeAnimation")][UsedImplicitly]
         public static IEnumerable<CodeInstruction> HScene_ChangeAnimation_RemoveHeightLock(IEnumerable<CodeInstruction> instructions)
         {
