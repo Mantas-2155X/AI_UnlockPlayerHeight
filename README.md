@@ -10,6 +10,7 @@ Needs https://github.com/IllusionMods/BepisPlugins for configuration to work!
 * Align camera position with players height  
 * Set player height according to card (seperate for Roam and H)  
 * Set player height according to custom value (seperate for Roam and H)  
+* Male slider is now available in the charamaker  
 
 **Download:**  
 * Download the latest `AI_UnlockPlayerHeight.dll` from https://github.com/Mantas-2155X/AI_UnlockPlayerHeight/releases  
