@@ -2,7 +2,7 @@
 This plugin unlocks the players height hard lock of 75.  
 
 It is *recommended*, that you keep players height during H at 75 (default) to avoid issues with H animations. 
-Illusion lazy-ed out and made all H animations prefer 75 as the player height, causing some of them to look weird when the player is at different heights.
+Illusion lazy-ed out and made all H animations prefer 75 as the player height, causing some of them to look weird when the player is at different heights.  
 
 **Current Features:**  
 * Align camera position with players height  
@@ -18,3 +18,6 @@ Illusion lazy-ed out and made all H animations prefer 75 as the player height, c
 **Configuration:**  
 * Please look at the plugin settings menu and enable/modify which features you want.  
 
+**To-Do:**  
+* Make players hand raise to compensate for the girl being huge and player being tiny.  
+* Somehow make H animations fit better at different player heights.  
