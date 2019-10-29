@@ -1,10 +1,13 @@
 # AI_UnlockPlayerHeight  
 This plugin unlocks the players height hard lock of 75.  
 
+It is *recommended*, that you keep players height during H at 75 (default) to avoid issues with H animations. 
+Illusion lazy-ed out and made all H animations prefer 75 as the player height, causing some of them to look weird when the player is at different heights.
+
 **Current Features:**  
 * Align camera position with players height  
-* Set player height according to card (Roam / H)  
-* Set player height according to custom value (Roam / H)  
+* Set player height according to card (seperate for Roam and H)  
+* Set player height according to custom value (seperate for Roam and H)  
 
 **Download:**  
 * Download the latest `AI_UnlockPlayerHeight.dll` from https://github.com/Mantas-2155X/AI_UnlockPlayerHeight/releases  
