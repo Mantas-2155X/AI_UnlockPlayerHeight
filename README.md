@@ -2,9 +2,9 @@
 This plugin unlocks the players height hard lock of 75.  
 
 **Current Features:**  
-* Set player height according to card  
-* Set player height according to custom value in plugin settings  
 * Align camera position with players height  
+* Set player height according to card (Roam / H)  
+* Set player height according to custom value (Roam / H)  
 
 **Download:**  
 * Download the latest `AI_UnlockPlayerHeight.dll` from https://github.com/Mantas-2155X/AI_UnlockPlayerHeight/releases  
