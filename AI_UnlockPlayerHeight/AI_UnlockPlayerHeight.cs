@@ -162,17 +162,18 @@ namespace AI_UnlockPlayerHeight {
             var trav = Traverse.Create(__instance);
             
             GameObject[] objMale = trav.Field("hideByCondition").Field("objMale").GetValue<GameObject[]>();
-            GameObject[] newMale = new GameObject[objMale.Length - 1];
             
+            var list = new List<GameObject>();
             foreach (GameObject obj in objMale)
             {
-                if (obj.GetComponent<CustomSliderSet>() != null && obj.GetComponent<CustomSliderSet>().title.text == "Height")
-                    continue;
+                if (obj.GetComponent<CustomSliderSet>() != null) 
+                    if(obj.GetComponent<CustomSliderSet>().title.text == "Height")
+                        continue;
 
-                newMale.AddToArray(obj);
+                list.Add(obj);
             }
 
-            trav.Field("hideByCondition").Field("objMale").SetValue(newMale);
+            trav.Field("hideByCondition").Field("objMale").SetValue(list.ToArray());
         }
 
         //--Hard height lock of 75 for the player removal--//
