@@ -18,7 +18,7 @@ using UnityEngine;
 using JetBrains.Annotations;
 
 namespace AI_UnlockPlayerHeight {
-    [BepInPlugin(nameof(AI_UnlockPlayerHeight), nameof(AI_UnlockPlayerHeight), "1.1.0")]
+    [BepInPlugin(nameof(AI_UnlockPlayerHeight), nameof(AI_UnlockPlayerHeight), "1.1.1")]
     public class AI_UnlockPlayerHeight : BaseUnityPlugin
     {
 
