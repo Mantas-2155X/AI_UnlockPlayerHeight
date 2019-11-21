@@ -22,5 +22,5 @@ Needs https://github.com/IllusionMods/BepisPlugins for configuration to work!
 * Please look at the plugin settings menu and enable/modify which features you want.  
 
 **To-Do:**  
-* Make players hand raise to compensate for the girl being huge and player being tiny.  
+* (handholding) Make players hand raise to compensate for the girl being huge and player being tiny.  
 * Somehow make H animations fit better at different player heights.  
