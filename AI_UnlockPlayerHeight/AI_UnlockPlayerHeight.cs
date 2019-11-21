@@ -2,6 +2,7 @@ using HarmonyLib;
 
 using BepInEx;
 using BepInEx.Harmony;
+using BepInEx.Logging;
 using BepInEx.Configuration;
 
 using System.Collections.Generic;
@@ -10,17 +11,16 @@ using System.Reflection.Emit;
 
 using AIChara;
 using AIProject;
-
 using CharaCustom;
 
 using UnityEngine;
 
-using JetBrains.Annotations;
-
 namespace AI_UnlockPlayerHeight {
-    [BepInPlugin(nameof(AI_UnlockPlayerHeight), nameof(AI_UnlockPlayerHeight), "1.1.1")]
+    [BepInPlugin(nameof(AI_UnlockPlayerHeight), nameof(AI_UnlockPlayerHeight), VERSION)]
     public class AI_UnlockPlayerHeight : BaseUnityPlugin
     {
+        public const string VERSION = "1.2.0";
+        private new static ManualLogSource Logger;
 
         private static ConfigEntry<bool> alignCamera { get; set; }
         
@@ -47,6 +47,49 @@ namespace AI_UnlockPlayerHeight {
             20.11f
         };
 
+        private void Awake()
+        {
+            Logger = base.Logger;
+            
+            alignCamera = Config.AddSetting(new ConfigDefinition("Camera", "Align camera to player height"), true, new ConfigDescription("Aligns camera position according to player height"));
+            
+            cardHeight = Config.AddSetting(new ConfigDefinition("Free Roam & Events", "Height from card"), true, new ConfigDescription("Set players height according to the value in the card", null, new ConfigurationManagerAttributes { Order = 1 }));
+            customHeight = Config.AddSetting(new ConfigDefinition("Free Roam & Events", "Custom height"), 75, new ConfigDescription("If 'Height from card' is off, use this value instead'", new AcceptableValueRange<int>(-100, 200), null, new ConfigurationManagerAttributes { Order = 2 }));
+
+            cardHeightDuringH = Config.AddSetting(new ConfigDefinition("H Scene", "Height from card (H)"), false, new ConfigDescription("Set players height according to the value in the card", null, new ConfigurationManagerAttributes { Order = 1 }));
+            customHeightDuringH = Config.AddSetting(new ConfigDefinition("H Scene", "Custom height (H)"), 75, new ConfigDescription("If 'Height from card' is off, use this value instead'", new AcceptableValueRange<int>(-100, 200), null, new ConfigurationManagerAttributes { Order = 2 }));
+            
+            alignCamera.SettingChanged += delegate { ApplySettings(actor); };
+
+            cardHeight.SettingChanged += delegate { ApplySettings(actor); };
+            customHeight.SettingChanged += delegate { ApplySettings(actor); };
+
+            cardHeightDuringH.SettingChanged += delegate { ApplySettings(actor); };
+            customHeightDuringH.SettingChanged += delegate { ApplySettings(actor); };
+
+            inH = false;
+            
+            HarmonyWrapper.PatchAll(typeof(AI_UnlockPlayerHeight));
+        }
+
+        private static IEnumerable<CodeInstruction> RemoveLock(IEnumerable<CodeInstruction> instructions, int min, int max, string name)
+        {
+            var il = instructions.ToList();
+            
+            var index = il.FindIndex(instruction => instruction.opcode == OpCodes.Ldc_R4 && (float)instruction.operand == 0.75f);
+            if (index <= 0)
+            {
+                Logger.LogMessage("Failed transpiling '" + name + "' 0.75f index not found!");
+                Logger.LogWarning("Failed transpiling '" + name + "' 0.75f index not found!");
+                return il;
+            }
+            
+            for(int i = min; i < max; i++)
+                il[index + i].opcode = OpCodes.Nop;
+
+            return il;
+        }
+        
         private static void ApplySettings(PlayerActor __instance)
         {
             if (__instance == null) 
@@ -85,50 +128,22 @@ namespace AI_UnlockPlayerHeight {
                 float mul = 2f;
 
                 if (child.name.Contains("Lookat"))
-                {
                     if (child.name.Contains("Action"))
                         height = Mathf.Clamp01(height); // Some actions could have the camera too low or too high. Clamp to prevent that.
                     else
                         mul = 2.25f;
-                }
 
                 child.localPosition = new Vector3(position.x, defaultY[i] + (-0.75f + height) * mul, position.z);
             }
         }
         
-        private void Awake()
-        {
-            alignCamera = Config.AddSetting(new ConfigDefinition("Camera", "Align camera to player height"), true, new ConfigDescription("Aligns camera position according to player height"));
-            
-            cardHeight = Config.AddSetting(new ConfigDefinition("Free Roam & Events", "Height from card"), true, new ConfigDescription("Set players height according to the value in the card", null, new ConfigurationManagerAttributes { Order = 1 }));
-            customHeight = Config.AddSetting(new ConfigDefinition("Free Roam & Events", "Custom height"), 75, new ConfigDescription("If 'Height from card' is off, use this value instead'", new AcceptableValueRange<int>(-100, 200), null, new ConfigurationManagerAttributes { Order = 2 }));
-
-            cardHeightDuringH = Config.AddSetting(new ConfigDefinition("H Scene", "Height from card (H)"), false, new ConfigDescription("Set players height according to the value in the card", null, new ConfigurationManagerAttributes { Order = 1 }));
-            customHeightDuringH = Config.AddSetting(new ConfigDefinition("H Scene", "Custom height (H)"), 75, new ConfigDescription("If 'Height from card' is off, use this value instead'", new AcceptableValueRange<int>(-100, 200), null, new ConfigurationManagerAttributes { Order = 2 }));
-            
-            alignCamera.SettingChanged += delegate { ApplySettings(actor); };
-
-            cardHeight.SettingChanged += delegate { ApplySettings(actor); };
-            customHeight.SettingChanged += delegate { ApplySettings(actor); };
-
-            cardHeightDuringH.SettingChanged += delegate { ApplySettings(actor); };
-            customHeightDuringH.SettingChanged += delegate { ApplySettings(actor); };
-
-            inH = false;
-            
-            HarmonyWrapper.PatchAll(typeof(AI_UnlockPlayerHeight));
-        }
-
         // Apply height, camera settings for free roam & events //
-        [HarmonyPostfix, HarmonyPatch(typeof(PlayerActor), "InitializeIK")][UsedImplicitly]
-        public static void PlayerActor_InitializeIK_HeightPostfix(PlayerActor __instance)
-        {
-            if (__instance != null) 
-                ApplySettings(__instance);
-        }
+        [HarmonyPostfix, HarmonyPatch(typeof(PlayerActor), "InitializeIK")]
+        public static void PlayerActor_InitializeIK_HeightPostfix(PlayerActor __instance) => ApplySettings(__instance);
+        
         
         // Apply duringH height settings when starting H //
-        [HarmonyPostfix, HarmonyPatch(typeof(HScene), "InitCoroutine")][UsedImplicitly]
+        [HarmonyPostfix, HarmonyPatch(typeof(HScene), "InitCoroutine")]
         public static void HScene_InitCoroutine_HeightPostfix(HScene __instance)
         {
             inH = true;
@@ -138,7 +153,7 @@ namespace AI_UnlockPlayerHeight {
         }
         
         // Apply roam height settings when ending H //
-        [HarmonyPostfix, HarmonyPatch(typeof(HScene), "OnDisable")][UsedImplicitly]
+        [HarmonyPostfix, HarmonyPatch(typeof(HScene), "OnDisable")]
         public static void HScene_OnDisable_HeightPostfix(HScene __instance)
         {
             inH = false;
@@ -148,7 +163,7 @@ namespace AI_UnlockPlayerHeight {
         }
         
         // Save players height from card into cardHeightValue //
-        [HarmonyPostfix, HarmonyPatch(typeof(ChaControl), "InitShapeBody")][UsedImplicitly]
+        [HarmonyPostfix, HarmonyPatch(typeof(ChaControl), "InitShapeBody")]
         public static void ChaControl_InitShapeBody_HeightPostfix(ChaControl __instance)
         {
             if (__instance != null && __instance.isPlayer) 
@@ -156,7 +171,7 @@ namespace AI_UnlockPlayerHeight {
         }
 
         // Enable male height slider in charamaker //
-        [HarmonyPrefix, HarmonyPatch(typeof(CustomControl), "Initialize")][UsedImplicitly]
+        [HarmonyPrefix, HarmonyPatch(typeof(CustomControl), "Initialize")]
         public static void CustomControl_Initialize_HeightPrefix(CustomControl __instance)
         {
             var trav = Traverse.Create(__instance);
@@ -178,92 +193,19 @@ namespace AI_UnlockPlayerHeight {
 
         //--Hard height lock of 75 for the player removal--//
         
-        [HarmonyTranspiler, HarmonyPatch(typeof(HScene), "ChangeAnimation")][UsedImplicitly]
-        public static IEnumerable<CodeInstruction> HScene_ChangeAnimation_RemoveHeightLock(IEnumerable<CodeInstruction> instructions)
-        {
-            var il = instructions.ToList();
-            
-            var index = il.FindIndex(instruction => instruction.opcode == OpCodes.Ldc_R4 && (float)instruction.operand == 0.75f);
-            if (index <= 0) return il;
-            
-            il[index - 7].opcode = OpCodes.Nop;
-            il[index - 6].opcode = OpCodes.Nop;
-            il[index - 5].opcode = OpCodes.Nop;
-            il[index - 4].opcode = OpCodes.Nop;
-            il[index - 3].opcode = OpCodes.Nop;
-            il[index - 2].opcode = OpCodes.Nop;
-            il[index - 1].opcode = OpCodes.Nop;
-            il[index].opcode = OpCodes.Nop;
-            il[index + 1].opcode = OpCodes.Nop;
-            il[index + 2].opcode = OpCodes.Nop;
-
-            return il;
-        }
+        [HarmonyTranspiler, HarmonyPatch(typeof(HScene), "ChangeAnimation")]
+        public static IEnumerable<CodeInstruction> HScene_ChangeAnimation_RemoveHeightLock(IEnumerable<CodeInstruction> instructions) => RemoveLock(instructions, -7, 3, "HScene_ChangeAnimation_RemoveHeightLock");
         
-        [HarmonyTranspiler, HarmonyPatch(typeof(ChaControl), "Initialize")][UsedImplicitly]
-        public static IEnumerable<CodeInstruction> ChaControl_Initialize_RemoveHeightLock(IEnumerable<CodeInstruction> instructions)
-        {
-            var il = instructions.ToList();
-            
-            var index = il.FindIndex(instruction => instruction.opcode == OpCodes.Ldc_R4 && (float)instruction.operand == 0.75f);
-            if (index <= 0) return il;
-            
-            il[index - 6].opcode = OpCodes.Nop;
-            il[index - 5].opcode = OpCodes.Nop;
-            il[index - 4].opcode = OpCodes.Nop;
-            il[index - 3].opcode = OpCodes.Nop;
-            il[index - 2].opcode = OpCodes.Nop;
-            il[index - 1].opcode = OpCodes.Nop;
-            il[index].opcode = OpCodes.Nop;
-            il[index + 1].opcode = OpCodes.Nop;
+        [HarmonyTranspiler, HarmonyPatch(typeof(ChaControl), "Initialize")]
+        public static IEnumerable<CodeInstruction> ChaControl_Initialize_RemoveHeightLock(IEnumerable<CodeInstruction> instructions) => RemoveLock(instructions, -6, 2, "ChaControl_Initialize_RemoveHeightLock");
 
-            return il;
-        }
+        [HarmonyTranspiler, HarmonyPatch(typeof(ChaControl), "InitShapeBody")]
+        public static IEnumerable<CodeInstruction> ChaControl_InitShapeBody_RemoveHeightLock(IEnumerable<CodeInstruction> instructions) => RemoveLock(instructions, -2, 2, "ChaControl_InitShapeBody_RemoveHeightLock");
 
-        [HarmonyTranspiler, HarmonyPatch(typeof(ChaControl), "InitShapeBody")][UsedImplicitly]
-        public static IEnumerable<CodeInstruction> ChaControl_InitShapeBody_RemoveHeightLock(IEnumerable<CodeInstruction> instructions)
-        {
-            var il = instructions.ToList();
-            
-            var index = il.FindIndex(instruction => instruction.opcode == OpCodes.Ldc_R4 && (float)instruction.operand == 0.75f);
-            if (index <= 0) return il;
-            
-            il[index - 2].opcode = OpCodes.Nop;
-            il[index - 1].opcode = OpCodes.Nop;
-            il[index].opcode = OpCodes.Nop;
-            il[index + 1].opcode = OpCodes.Nop;
+        [HarmonyTranspiler, HarmonyPatch(typeof(ChaControl), "SetShapeBodyValue")]
+        public static IEnumerable<CodeInstruction> ChaControl_SetShapeBodyValue_RemoveHeightLock(IEnumerable<CodeInstruction> instructions) => RemoveLock(instructions, 0, 2, "ChaControl_SetShapeBodyValue_RemoveHeightLock");
 
-            return il;
-        }
-
-        [HarmonyTranspiler, HarmonyPatch(typeof(ChaControl), "SetShapeBodyValue")][UsedImplicitly]
-        public static IEnumerable<CodeInstruction> ChaControl_SetShapeBodyValue_RemoveHeightLock(IEnumerable<CodeInstruction> instructions)
-        {
-            var il = instructions.ToList();
-            
-            var index = il.FindIndex(instruction => instruction.opcode == OpCodes.Ldc_R4 && (float)instruction.operand == 0.75f);
-            if (index <= 0) return il;
-            
-            il[index].opcode = OpCodes.Nop;
-            il[index + 1].opcode = OpCodes.Nop;
-
-            return il;
-        }
-
-        [HarmonyTranspiler, HarmonyPatch(typeof(ChaControl), "UpdateShapeBodyValueFromCustomInfo")][UsedImplicitly]
-        public static IEnumerable<CodeInstruction> ChaControl_UpdateShapeBodyValueFromCustomInfo_RemoveHeightLock(IEnumerable<CodeInstruction> instructions)
-        {
-            var il = instructions.ToList();
-            
-            var index = il.FindIndex(instruction => instruction.opcode == OpCodes.Ldc_R4 && (float)instruction.operand == 0.75f);
-            if (index <= 0) return il;
-            
-            il[index - 2].opcode = OpCodes.Nop;
-            il[index - 1].opcode = OpCodes.Nop;
-            il[index].opcode = OpCodes.Nop;
-            il[index + 1].opcode = OpCodes.Nop;
-
-            return il;
-        }
+        [HarmonyTranspiler, HarmonyPatch(typeof(ChaControl), "UpdateShapeBodyValueFromCustomInfo")]
+        public static IEnumerable<CodeInstruction> ChaControl_UpdateShapeBodyValueFromCustomInfo_RemoveHeightLock(IEnumerable<CodeInstruction> instructions) => RemoveLock(instructions, -2, 2, "ChaControl_UpdateShapeBodyValueFromCustomInfo_RemoveHeightLock");
     }
 }
