@@ -13,11 +13,11 @@ Needs https://github.com/IllusionMods/BepisPlugins for configuration to work!
 * Male height slider is now available in the charamaker  
 
 **Download:**  
-* Download the latest `AI_UnlockPlayerHeight.dll` from https://github.com/Mantas-2155X/AI_UnlockPlayerHeight/releases  
+* Download the latest `AI_UnlockPlayerHeight.zip` from https://github.com/Mantas-2155X/AI_UnlockPlayerHeight/releases  
 
 **Installation:**  
-* Drop `AI_UnlockPlayerHeight.dll` in `BepInEx/plugins/`  
-
+* Unzip `AI_UnlockPlayerHeight.zip` into your game directory. If done correctly, in `BepInEx/plugins/2155X/` you should see `AI_UnlockPlayerHeight.dll`  
+* If you're moving from an older version (<1.1.2), make sure to remove the old file `BepInEx/plugins/AI_UnlockPlayerHeight.dll`  
 **Configuration:**  
 * Please look at the plugin settings menu and enable/modify which features you want.  
 
