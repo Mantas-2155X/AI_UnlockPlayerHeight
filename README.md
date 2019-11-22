@@ -18,6 +18,7 @@ Needs https://github.com/IllusionMods/BepisPlugins for configuration to work!
 **Installation:**  
 * Unzip `AI_UnlockPlayerHeight.zip` into your game directory. If done correctly, in `BepInEx/plugins/2155X/` you should see `AI_UnlockPlayerHeight.dll`  
 * If you're moving from an older version (<1.1.2), make sure to remove the old file `BepInEx/plugins/AI_UnlockPlayerHeight.dll`  
+
 **Configuration:**  
 * Please look at the plugin settings menu and enable/modify which features you want.  
 
