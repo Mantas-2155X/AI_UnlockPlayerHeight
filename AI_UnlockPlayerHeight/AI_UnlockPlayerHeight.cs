@@ -70,6 +70,14 @@ namespace AI_UnlockPlayerHeight {
 
             inH = false;
             
+            var harmony = new Harmony("AI_UnlockPlayerHeight_1");
+
+            var t = typeof(HScene).GetNestedTypes(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public).Single(x => x.Name.StartsWith("<ChangeAnimation>c__Iterator2"));
+            var m = t.GetMethod("MoveNext");
+            
+            var transpiler = new HarmonyMethod(typeof(AI_UnlockPlayerHeight), nameof(HScene_ChangeAnimation_RemoveHeightLock));
+            harmony.Patch(m, null, null, transpiler);
+            
             HarmonyWrapper.PatchAll(typeof(AI_UnlockPlayerHeight));
         }
 
@@ -200,6 +208,24 @@ namespace AI_UnlockPlayerHeight {
 
         //--Hard height lock of 75 for the player removal--//
         
+        public static IEnumerable<CodeInstruction> HScene_ChangeAnimation_RemoveHeightLock(IEnumerable<CodeInstruction> instructions)
+        {
+            var il = instructions.ToList();
+            
+            var index = il.FindIndex(instruction => instruction.opcode == OpCodes.Callvirt && (instruction.operand as MethodInfo)?.Name == "SetShapeBodyValue");
+            if (index <= 0)
+            {
+                Logger.LogMessage("Failed transpiling 'HScene_ChangeAnimation_RemoveHeightLock' SetShapeBodyValue index not found!");
+                Logger.LogWarning("Failed transpiling 'HScene_ChangeAnimation_RemoveHeightLock' SetShapeBodyValue index not found!");
+                return il;
+            }
+
+            for (int i = -8; i < 2; i++)
+                il[index + i].opcode = OpCodes.Nop;
+            
+            return il;
+        }
+        
         [HarmonyTranspiler, HarmonyPatch(typeof(Les), "setAnimationParamater")]
         public static IEnumerable<CodeInstruction> Les_setAnimationParamater_RemoveHeightLock(IEnumerable<CodeInstruction> instructions)
         {
@@ -216,35 +242,17 @@ namespace AI_UnlockPlayerHeight {
             for (int i = -4; i < 2; i++)
                 il[index + i].opcode = OpCodes.Nop;
 
-            if (il[index - 22].opcode != OpCodes.Ldarg)
+            index = il.FindIndex(instruction => instruction.opcode == OpCodes.Callvirt && (instruction.operand as MethodInfo)?.Name == "get_isPlayer");
+            if (index <= 0)
             {
                 Logger.LogMessage("Failed transpiling 'Les_setAnimationParamater_RemoveHeightLock' Ldarg index not found!");
                 Logger.LogWarning("Failed transpiling 'Les_setAnimationParamater_RemoveHeightLock' Ldarg index not found!");
                 return il;
             }
             
-            for (int i = -22; i < -16; i++)
+            for (int i = -4; i < 2; i++)
                 il[index + i].opcode = OpCodes.Nop;
 
-            return il;
-        }
-
-        [HarmonyTranspiler, HarmonyPatch(typeof(HScene), "ChangeAnimation")]
-        public static IEnumerable<CodeInstruction> HScene_ChangeAnimation_RemoveHeightLock(IEnumerable<CodeInstruction> instructions)
-        {
-            var il = instructions.ToList();
-
-            var index = il.FindIndex(instruction => instruction.opcode == OpCodes.Callvirt && (instruction.operand as MethodInfo)?.Name == "SetShapeBodyValue");
-            if (index <= 0)
-            {
-                Logger.LogMessage("Failed transpiling 'HScene_ChangeAnimation_RemoveHeightLock' SetShapeBodyValue index not found!");
-                Logger.LogWarning("Failed transpiling 'HScene_ChangeAnimation_RemoveHeightLock' SetShapeBodyValue index not found!");
-                return il;
-            }
-
-            for (int i = -8; i < 2; i++)
-                il[index + i].opcode = OpCodes.Nop;
-            
             return il;
         }
         
