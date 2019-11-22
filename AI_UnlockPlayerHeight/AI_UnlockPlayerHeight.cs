@@ -245,8 +245,8 @@ namespace AI_UnlockPlayerHeight {
             index = il.FindIndex(instruction => instruction.opcode == OpCodes.Callvirt && (instruction.operand as MethodInfo)?.Name == "get_isPlayer");
             if (index <= 0)
             {
-                Logger.LogMessage("Failed transpiling 'Les_setAnimationParamater_RemoveHeightLock' Ldarg index not found!");
-                Logger.LogWarning("Failed transpiling 'Les_setAnimationParamater_RemoveHeightLock' Ldarg index not found!");
+                Logger.LogMessage("Failed transpiling 'Les_setAnimationParamater_RemoveHeightLock' get_isPlayer index not found!");
+                Logger.LogWarning("Failed transpiling 'Les_setAnimationParamater_RemoveHeightLock' get_isPlayer index not found!");
                 return il;
             }
             
