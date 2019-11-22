@@ -7,6 +7,7 @@ using BepInEx.Configuration;
 
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Reflection.Emit;
 
 using AIChara;
@@ -19,7 +20,7 @@ namespace AI_UnlockPlayerHeight {
     [BepInPlugin(nameof(AI_UnlockPlayerHeight), nameof(AI_UnlockPlayerHeight), VERSION)]
     public class AI_UnlockPlayerHeight : BaseUnityPlugin
     {
-        public const string VERSION = "1.2.0";
+        public const string VERSION = "1.1.2";
         private new static ManualLogSource Logger;
 
         private static ConfigEntry<bool> alignCamera { get; set; }
@@ -72,22 +73,16 @@ namespace AI_UnlockPlayerHeight {
             HarmonyWrapper.PatchAll(typeof(AI_UnlockPlayerHeight));
         }
 
-        private static IEnumerable<CodeInstruction> RemoveLock(IEnumerable<CodeInstruction> instructions, int min, int max, string name)
+        private static float GetHeight()
         {
-            var il = instructions.ToList();
+            float height = 0.75f;
             
-            var index = il.FindIndex(instruction => instruction.opcode == OpCodes.Ldc_R4 && (float)instruction.operand == 0.75f);
-            if (index <= 0)
-            {
-                Logger.LogMessage("Failed transpiling '" + name + "' 0.75f index not found!");
-                Logger.LogWarning("Failed transpiling '" + name + "' 0.75f index not found!");
-                return il;
-            }
-            
-            for(int i = min; i < max; i++)
-                il[index + i].opcode = OpCodes.Nop;
+            if(inH)
+                height = cardHeightDuringH.Value ? cardHeightValue : customHeightDuringH.Value / 100f;
+            else
+                height = cardHeight.Value ? cardHeightValue : customHeight.Value / 100f;
 
-            return il;
+            return height;
         }
         
         private static void ApplySettings(PlayerActor __instance)
@@ -105,13 +100,8 @@ namespace AI_UnlockPlayerHeight {
             if (controller == null) 
                 return;
 
-            float height;
+            float height = GetHeight();
             
-            if(inH)
-                height = cardHeightDuringH.Value ? cardHeightValue : customHeightDuringH.Value / 100f;
-            else
-                height = cardHeight.Value ? cardHeightValue : customHeight.Value / 100f;
-
             chaControl.SetShapeBodyValue(0, height);
             
             for (int i = 0; i < controller.transform.childCount; i++)
@@ -137,11 +127,28 @@ namespace AI_UnlockPlayerHeight {
             }
         }
         
+        private static IEnumerable<CodeInstruction> RemoveLock(IEnumerable<CodeInstruction> instructions, int min, int max, string name)
+        {
+            var il = instructions.ToList();
+            
+            var index = il.FindIndex(instruction => instruction.opcode == OpCodes.Ldc_R4 && (float)instruction.operand == 0.75f);
+            if (index <= 0)
+            {
+                Logger.LogMessage("Failed transpiling '" + name + "' 0.75f index not found!");
+                Logger.LogWarning("Failed transpiling '" + name + "' 0.75f index not found!");
+                return il;
+            }
+            
+            for(int i = min; i < max; i++)
+                il[index + i].opcode = OpCodes.Nop;
+
+            return il;
+        }
+        
         // Apply height, camera settings for free roam & events //
         [HarmonyPostfix, HarmonyPatch(typeof(PlayerActor), "InitializeIK")]
         public static void PlayerActor_InitializeIK_HeightPostfix(PlayerActor __instance) => ApplySettings(__instance);
-        
-        
+
         // Apply duringH height settings when starting H //
         [HarmonyPostfix, HarmonyPatch(typeof(HScene), "InitCoroutine")]
         public static void HScene_InitCoroutine_HeightPostfix(HScene __instance)
@@ -193,8 +200,53 @@ namespace AI_UnlockPlayerHeight {
 
         //--Hard height lock of 75 for the player removal--//
         
+        [HarmonyTranspiler, HarmonyPatch(typeof(Les), "setAnimationParamater")]
+        public static IEnumerable<CodeInstruction> Les_setAnimationParamater_RemoveHeightLock(IEnumerable<CodeInstruction> instructions)
+        {
+            var il = instructions.ToList();
+            
+            var index = il.FindIndex(instruction => instruction.opcode == OpCodes.Ldc_R4 && (float)instruction.operand == 0.75f);
+            if (index <= 0)
+            {
+                Logger.LogMessage("Failed transpiling 'Les_setAnimationParamater_RemoveHeightLock' 0.75f index not found!");
+                Logger.LogWarning("Failed transpiling 'Les_setAnimationParamater_RemoveHeightLock' 0.75f index not found!");
+                return il;
+            }
+
+            for (int i = -4; i < 2; i++)
+                il[index + i].opcode = OpCodes.Nop;
+
+            if (il[index - 22].opcode != OpCodes.Ldarg)
+            {
+                Logger.LogMessage("Failed transpiling 'Les_setAnimationParamater_RemoveHeightLock' Ldarg index not found!");
+                Logger.LogWarning("Failed transpiling 'Les_setAnimationParamater_RemoveHeightLock' Ldarg index not found!");
+                return il;
+            }
+            
+            for (int i = -22; i < -16; i++)
+                il[index + i].opcode = OpCodes.Nop;
+
+            return il;
+        }
+
         [HarmonyTranspiler, HarmonyPatch(typeof(HScene), "ChangeAnimation")]
-        public static IEnumerable<CodeInstruction> HScene_ChangeAnimation_RemoveHeightLock(IEnumerable<CodeInstruction> instructions) => RemoveLock(instructions, -7, 3, "HScene_ChangeAnimation_RemoveHeightLock");
+        public static IEnumerable<CodeInstruction> HScene_ChangeAnimation_RemoveHeightLock(IEnumerable<CodeInstruction> instructions)
+        {
+            var il = instructions.ToList();
+
+            var index = il.FindIndex(instruction => instruction.opcode == OpCodes.Callvirt && (instruction.operand as MethodInfo)?.Name == "SetShapeBodyValue");
+            if (index <= 0)
+            {
+                Logger.LogMessage("Failed transpiling 'HScene_ChangeAnimation_RemoveHeightLock' SetShapeBodyValue index not found!");
+                Logger.LogWarning("Failed transpiling 'HScene_ChangeAnimation_RemoveHeightLock' SetShapeBodyValue index not found!");
+                return il;
+            }
+
+            for (int i = -8; i < 2; i++)
+                il[index + i].opcode = OpCodes.Nop;
+            
+            return il;
+        }
         
         [HarmonyTranspiler, HarmonyPatch(typeof(ChaControl), "Initialize")]
         public static IEnumerable<CodeInstruction> ChaControl_Initialize_RemoveHeightLock(IEnumerable<CodeInstruction> instructions) => RemoveLock(instructions, -6, 2, "ChaControl_Initialize_RemoveHeightLock");
