@@ -17,7 +17,7 @@ using CharaCustom;
 using UnityEngine;
 
 namespace AI_UnlockPlayerHeight {
-    [BepInPlugin(nameof(AI_UnlockPlayerHeight), nameof(AI_UnlockPlayerHeight), VERSION)]
+    [BepInPlugin(nameof(AI_UnlockPlayerHeight), nameof(AI_UnlockPlayerHeight), VERSION)][BepInProcess("AI-Syoujyo")]
     public class AI_UnlockPlayerHeight : BaseUnityPlugin
     {
         public const string VERSION = "1.1.2";
