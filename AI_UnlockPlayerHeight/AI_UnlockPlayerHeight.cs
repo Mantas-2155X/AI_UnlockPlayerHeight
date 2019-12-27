@@ -18,10 +18,10 @@ using CharaCustom;
 using UnityEngine;
 
 namespace AI_UnlockPlayerHeight {
-    [BepInPlugin(nameof(AI_UnlockPlayerHeight), nameof(AI_UnlockPlayerHeight), VERSION)][BepInProcess("AI-Syoujyo")]
+    [BepInPlugin(nameof(AI_UnlockPlayerHeight), nameof(AI_UnlockPlayerHeight), VERSION)]
     public class AI_UnlockPlayerHeight : BaseUnityPlugin
     {
-        public const string VERSION = "1.1.3";
+        public const string VERSION = "1.1.4";
         private new static ManualLogSource Logger;
 
         private static ConfigEntry<bool> alignCamera { get; set; }
@@ -53,13 +53,13 @@ namespace AI_UnlockPlayerHeight {
         {
             Logger = base.Logger;
             
-            alignCamera = Config.AddSetting(new ConfigDefinition("Camera", "Align camera to player height"), true, new ConfigDescription("Aligns camera position according to player height"));
+            alignCamera = Config.Bind(new ConfigDefinition("Camera", "Align camera to player height"), true, new ConfigDescription("Aligns camera position according to player height"));
             
-            cardHeight = Config.AddSetting(new ConfigDefinition("Free Roam & Events", "Height from card"), true, new ConfigDescription("Set players height according to the value in the card", null, new ConfigurationManagerAttributes { Order = 1 }));
-            customHeight = Config.AddSetting(new ConfigDefinition("Free Roam & Events", "Custom height"), 75, new ConfigDescription("If 'Height from card' is off, use this value instead'", new AcceptableValueRange<int>(-100, 200), null, new ConfigurationManagerAttributes { Order = 2 }));
+            cardHeight = Config.Bind(new ConfigDefinition("Free Roam & Events", "Height from card"), true, new ConfigDescription("Set players height according to the value in the card", null, new ConfigurationManagerAttributes { Order = 1 }));
+            customHeight = Config.Bind(new ConfigDefinition("Free Roam & Events", "Custom height"), 75, new ConfigDescription("If 'Height from card' is off, use this value instead'", new AcceptableValueRange<int>(-100, 200), null, new ConfigurationManagerAttributes { Order = 2 }));
 
-            cardHeightDuringH = Config.AddSetting(new ConfigDefinition("H Scene", "Height from card (H)"), false, new ConfigDescription("Set players height according to the value in the card", null, new ConfigurationManagerAttributes { Order = 1 }));
-            customHeightDuringH = Config.AddSetting(new ConfigDefinition("H Scene", "Custom height (H)"), 75, new ConfigDescription("If 'Height from card' is off, use this value instead'", new AcceptableValueRange<int>(-100, 200), null, new ConfigurationManagerAttributes { Order = 2 }));
+            cardHeightDuringH = Config.Bind(new ConfigDefinition("H Scene", "Height from card (H)"), false, new ConfigDescription("Set players height according to the value in the card", null, new ConfigurationManagerAttributes { Order = 1 }));
+            customHeightDuringH = Config.Bind(new ConfigDefinition("H Scene", "Custom height (H)"), 75, new ConfigDescription("If 'Height from card' is off, use this value instead'", new AcceptableValueRange<int>(-100, 200), null, new ConfigurationManagerAttributes { Order = 2 }));
             
             alignCamera.SettingChanged += delegate { ApplySettings(actor); };
 
