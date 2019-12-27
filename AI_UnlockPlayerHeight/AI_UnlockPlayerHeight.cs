@@ -1,10 +1,11 @@
-using HarmonyLib;
+﻿using HarmonyLib;
 
 using BepInEx;
 using BepInEx.Harmony;
 using BepInEx.Logging;
 using BepInEx.Configuration;
 
+using System.Diagnostics;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -20,7 +21,7 @@ namespace AI_UnlockPlayerHeight {
     [BepInPlugin(nameof(AI_UnlockPlayerHeight), nameof(AI_UnlockPlayerHeight), VERSION)][BepInProcess("AI-Syoujyo")]
     public class AI_UnlockPlayerHeight : BaseUnityPlugin
     {
-        public const string VERSION = "1.1.2";
+        public const string VERSION = "1.1.3";
         private new static ManualLogSource Logger;
 
         private static ConfigEntry<bool> alignCamera { get; set; }
@@ -69,15 +70,7 @@ namespace AI_UnlockPlayerHeight {
             customHeightDuringH.SettingChanged += delegate { ApplySettings(actor); };
 
             inH = false;
-            
-            var harmony = new Harmony("AI_UnlockPlayerHeight_1");
 
-            var t = typeof(HScene).GetNestedTypes(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public).Single(x => x.Name.StartsWith("<ChangeAnimation>c__Iterator2"));
-            var m = t.GetMethod("MoveNext");
-            
-            var transpiler = new HarmonyMethod(typeof(AI_UnlockPlayerHeight), nameof(HScene_ChangeAnimation_RemoveHeightLock));
-            harmony.Patch(m, null, null, transpiler);
-            
             HarmonyWrapper.PatchAll(typeof(AI_UnlockPlayerHeight));
         }
 
@@ -185,6 +178,28 @@ namespace AI_UnlockPlayerHeight {
                 cardHeightValue = __instance.chaFile.custom.body.shapeValueBody[0];
         }
 
+        // Ignore setting male height to 0.75f when changing H position //
+        [HarmonyPrefix, HarmonyPatch(typeof(ChaControl), "SetShapeBodyValue")]
+        public static bool ChaControl_SetShapeBodyValue_HeightPrefix(ChaControl __instance, ref bool __result, int index, float value)
+        {
+            if (!inH || __instance == null || __instance.sex != 0)
+                return true;
+
+            if (index != 0 || value != 0.75f)
+                return true;
+            
+            StackFrame frame = new StackFrame(2);
+            if (frame.GetMethod().Name != "MoveNext")
+                return true;
+            
+            frame = new StackFrame(3);
+            if (!frame.GetMethod().Name.Contains("ChangeAnimation"))
+                return true;
+
+            __result = true;
+            return false;
+        }
+
         // Enable male height slider in charamaker //
         [HarmonyPrefix, HarmonyPatch(typeof(CustomControl), "Initialize")]
         public static void CustomControl_Initialize_HeightPrefix(CustomControl __instance)
@@ -207,8 +222,7 @@ namespace AI_UnlockPlayerHeight {
         }
 
         //--Hard height lock of 75 for the player removal--//
-        
-        public static IEnumerable<CodeInstruction> HScene_ChangeAnimation_RemoveHeightLock(IEnumerable<CodeInstruction> instructions)
+        private static IEnumerable<CodeInstruction> HScene_ChangeAnimation_RemoveHeightLock(IEnumerable<CodeInstruction> instructions)
         {
             var il = instructions.ToList();
             
