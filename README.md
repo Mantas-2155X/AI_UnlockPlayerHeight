@@ -9,6 +9,7 @@ Illusion lazy-ed out and made all H animations prefer 75 as the player height, c
 Needs https://github.com/IllusionMods/BepisPlugins for configuration to work!
 
 **Current Features:**  
+* Studio support  
 * Align camera position with players height  
 * Set player height according to card (seperate for Roam and H)  
 * Set player height according to custom value (seperate for Roam and H)  
