@@ -1,6 +1,8 @@
 # AI_UnlockPlayerHeight  
 This plugin unlocks the players height hard lock of 75.  
 
+# DO NOT REUPLOAD WITHOUT PERMISSION | 未经许可请勿转载  
+
 It is *recommended*, that you keep players height during H at 75 (default) to avoid issues with H animations. 
 Illusion lazy-ed out and made all H animations prefer 75 as the player height, causing some of them to look weird when the player is at different heights.  
 
