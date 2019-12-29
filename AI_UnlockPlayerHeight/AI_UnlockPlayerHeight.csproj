@@ -67,6 +67,7 @@
   <ItemGroup>
     <Compile Include="AI_UnlockPlayerHeight.cs" />
     <Compile Include="ConfigurationManagerAttributes.cs" />
+    <Compile Include="Hooks.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
